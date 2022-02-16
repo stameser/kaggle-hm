@@ -1,4 +1,7 @@
-Total number of items 105,542
+Total number of items 105,542.
+What we don't know: 
+- are there any other items? 
+- release date for items? when it was for sale, when it was on sale? 
 
 | name                         | type   | description                                                                                              |
 |------------------------------|--------|----------------------------------------------------------------------------------------------------------|
