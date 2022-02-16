@@ -1,0 +1,15 @@
+name: kagglehm
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - pyarrow=7.0
+  - pip:
+    - pandas==1.4.1
+    - seaborn==0.11.2
+    - scikit-learn==1.0.2
+    - jupyter==1.0.0
+    - kaggle==1.5.12
+    - mlflow==1.23.1
+    - dvc==2.9.4
