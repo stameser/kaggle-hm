@@ -1,0 +1,6 @@
+dvc
+pandas
+mlflow
+pyarrow
+scikit-learn
+seaborn
