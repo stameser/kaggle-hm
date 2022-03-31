@@ -9,6 +9,7 @@ import logging
 from pathlib import Path
 
 import pandas as pd
+import mlflow
 
 LOG = logging.getLogger(__file__)
 
@@ -41,6 +42,9 @@ def rec_precision(data: pd.DataFrame) -> float:
 
 
 if __name__ == '__main__':
+    mlflow.set_tracking_uri('http://localhost:5001')
+    mlflow.set_experiment('h-and-m')
+
     data_root = Path(os.environ['KAGGLE_HM_DATA'])
     train_dates = {
         'start': '2018-09-01',
@@ -70,14 +74,14 @@ if __name__ == '__main__':
     )
 
     _ = (
-        (t['t_dat'] >= test_dates['start']) &
-        (t['t_dat'] <= test_dates['end'])
+            (t['t_dat'] >= test_dates['start']) &
+            (t['t_dat'] <= test_dates['end'])
     )
     test = t[_]
     results = test.groupby('customer_id', observed=True).agg(bought=('article_id', list))
     results['predicted'] = [top_12 for _ in range(results.shape[0])]
-    prec = rec_precision(results)
-    print(f'test: {prec:.4f}')
+    test_prec = rec_precision(results)
+    print(f'test: {test_prec:.4f}')
 
     _ = (
             (t['t_dat'] >= val_dates['start']) &
@@ -86,12 +90,28 @@ if __name__ == '__main__':
     val = t[_]
     results = val.groupby('customer_id', observed=True).agg(bought=('article_id', list))
     results['predicted'] = [top_12 for _ in range(results.shape[0])]
-    prec = rec_precision(results)
-    print(f'val: {prec:.4f}')
+    val_prec = rec_precision(results)
+    print(f'val: {val_prec:.4f}')
 
     submission = pd.read_csv(data_root / 'raw' / 'sample_submission.csv.zip')
     submission['prediction'] = [' '.join(top_12) for _ in range(submission.shape[0])]
     submission.to_csv(data_root / 'output' / 'submission.csv', index=False)
     print('done')
-#     kaggle c submit -f .\submission.csv -m "hello world" -c h-and-m-personalized-fashion-recommendations public 0.003
 
+    mlflow.log_metrics({
+        'test_map12': test_prec,
+        'val_map12': val_prec
+    })
+    _ = data_root / 'output' / 'submission.csv'
+    mlflow.log_artifact(str(_), 'submission.csv')
+    mlflow.log_params({
+        'train_period': train_dates,
+        'test_period': test_dates,
+        'val_period': val_dates,
+        'train_shape': train.shape,
+        'test_shape': test.shape,
+        'val_shape': val.shape,
+        'submission_shape': submission.shape
+    })
+#   kaggle c submit -f .\submission.csv -m "hello world" -c h-and-m-personalized-fashion-recommendations public 0.003
+#   0.07
