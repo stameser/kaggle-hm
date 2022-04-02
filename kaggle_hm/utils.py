@@ -8,8 +8,8 @@ import matplotlib.image as mpimg
 def init_nb():
     pd.set_option('display.max_columns', 50)
     pd.set_option('display.max_rows', 100)
-    pd.set_option('display.float_format', '{:.3f}'.format)
-    np.set_printoptions(suppress=True, precision=3)
+    pd.set_option('display.float_format', '{:.4f}'.format)
+    np.set_printoptions(suppress=True, precision=4)
     plt.rcParams['figure.figsize'] = (10, 5)
 
 
