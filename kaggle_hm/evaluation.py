@@ -95,8 +95,8 @@ def enrich_data(data, predictions, customers):
 
     stats = (
         data
-            .groupby('customer_id')
-            .agg(
+        .groupby('customer_id')
+        .agg(
             items_total=('article_id', 'count'),
             items_uniq=('article_id', 'nunique')
         )
@@ -140,22 +140,13 @@ def collect(predictions):
 # explore random users vis. items, highlight relevant items
 
 if __name__ == '__main__':
+    from kaggle_hm.config import data_root, train_dates, test_dates
     mlflow.set_tracking_uri('http://localhost:5001')
     mlflow.set_experiment('h-and-m')
 
-    data_root = Path(os.environ['KAGGLE_HM_DATA'])
-    train_dates = {
-        'start': '2018-09-01',
-        'end': '2020-09-08'
-    }
-    test_dates = {
-        'start': '2020-09-09',
-        'end': '2020-09-15'
-    }
-
     t = pd.read_parquet(data_root / 'clean' / 'transactions.parquet')
     c = pd.read_parquet(data_root / 'clean' / 'customers.parquet')
-    c['age_group'] = pd.cut(c['age'], bins=np.arange(c['age'].min(), c['age'].max(), 5))
+    c['age_group'] = pd.cut(c['age'], bins=[16, 21, 26, 30, 40, 50, 60, 100])
     c = c.set_index('customer_id')
 
     _ = (

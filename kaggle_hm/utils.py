@@ -20,6 +20,7 @@ def plot_item(c, ax=None):
     try:
         img = mpimg.imread(path)
         ax.imshow(img)
+        ax.set(title=f'{c}')
     except:
         print(f'{path} not found')
 
