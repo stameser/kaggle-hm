@@ -6,3 +6,5 @@ build/
 *.egg-info/
 data/
 high_simil/
+*.csv
+*.parquet

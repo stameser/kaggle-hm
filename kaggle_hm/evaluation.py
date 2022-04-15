@@ -13,6 +13,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import mlflow
 
+from kaggle_hm.config import data_root, train_dates, test_dates
+from kaggle_hm.chart_model import filter_data, compute_chart
+
 LOG = logging.getLogger(__file__)
 
 
@@ -140,32 +143,17 @@ def collect(predictions):
 # explore random users vis. items, highlight relevant items
 
 if __name__ == '__main__':
-    from kaggle_hm.config import data_root, train_dates, test_dates
-    mlflow.set_tracking_uri('http://localhost:5001')
+    # mlflow.set_tracking_uri('http://localhost:5001')
     mlflow.set_experiment('h-and-m')
 
     t = pd.read_parquet(data_root / 'clean' / 'transactions.parquet')
-    c = pd.read_parquet(data_root / 'clean' / 'customers.parquet')
+    c = pd.read_parquet(data_root / 'clean' / 'customers.parquet').set_index('customer_id')
     c['age_group'] = pd.cut(c['age'], bins=[16, 21, 26, 30, 40, 50, 60, 100])
-    c = c.set_index('customer_id')
 
-    _ = (
-            (t['t_dat'] >= train_dates['start']) &
-            (t['t_dat'] <= train_dates['end'])
-    )
-    train = t[_]
-    top_12 = (
-        train
-        .groupby('article_id')
-        .agg(total_count=('customer_id', 'count'))
-        .sort_values('total_count', ascending=False)[:12].reset_index()['article_id'].tolist()
-    )
+    train = filter_data(t, train_dates['start'], train_dates['end'])
+    top_12 = compute_chart(train)
 
-    _ = (
-            (t['t_dat'] >= test_dates['start']) &
-            (t['t_dat'] <= test_dates['end'])
-    )
-    test = t[_]
+    test = filter_data(t, test_dates['start'], test_dates['end'])
     results = test.groupby('customer_id', observed=True).agg(bought=('article_id', set))
     results['prediction'] = [top_12 for _ in range(results.shape[0])]
 
@@ -175,7 +163,10 @@ if __name__ == '__main__':
     print(f'test: {test_prec:.4f}')
     collect(results)
 
-    submission = pd.read_csv(data_root / 'raw' / 'sample_submission.csv.zip')
+    latest = filter_data(t, from_date='2020-09-01')
+    top_12 = compute_chart(latest)
+
+    submission = pd.read_csv(data_root / 'raw' / 'sample_submission.csv')
     submission['prediction'] = [' '.join(top_12) for _ in range(submission.shape[0])]
     submission.to_csv(data_root / 'output' / 'submission.csv', index=False)
     print('done')
