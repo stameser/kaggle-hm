@@ -22,7 +22,15 @@ def cosine_simil(u, v):
     return len(u & v) / np.sqrt(len(u) * len(v))
 
 
-def calc_item_simil(item_id, cust_item_lookup, item_customer_lookup, min_similar=1):
+def calc_item_simil(item_id, cust_item_lookup, item_customer_lookup, min_similar=2):
+    """
+    Amazon item-to-item similarity search.
+    :param item_id:
+    :param cust_item_lookup:
+    :param item_customer_lookup:
+    :param min_similar: default 2: we want pairs that at least 2 customers bought
+    :return:
+    """
     neighbours = set()
     for aid in item_customer_lookup[item_id]:
         if aid not in cust_item_lookup:
@@ -69,8 +77,8 @@ def main(train_start, train_end, min_customers, min_items, min_similar):
     compute knn similarities for a given date
 
     usage:
-    python3 knn_simil.py knn --train-start 2020-08-01 --train-end 2020-09-08 --min-customers 1 --min-items 1 --min-similar 1
-    python3 knn_simil.py knn --train-start 2020-09-01 --train-end 2020-09-08 --min-customers 1 --min-items 1 --min-similar 1
+    python3 knn_simil.py knn --train-start 2020-08-01 --train-end 2020-09-08 --min-customers 2 --min-items 1 --min-similar 2 | tee -a $KAGGLE_HM_DATA/logs/knn.log
+    python3 knn_simil.py knn --train-start 2020-09-01 --train-end 2020-09-08 --min-customers 2 --min-items 1 --min-similar 2 | tee $KAGGLE_HM_DATA/logs/knn.log
     """
     LOG.info(
         f"train_start: {train_start}, train_end: {train_end}, min_customers: {min_customers}, min_items: {min_items}")
@@ -118,6 +126,15 @@ def main(train_start, train_end, min_customers, min_items, min_similar):
             similarity_df = pd.concat([similarity_df, _])
 
     similarity_df.to_parquet(data_root / 'clean' / 'similarity_table.parquet')
+    with (data_root / 'clean' / 'simil' / 'meta.json').open() as f:
+        meta = {
+            'train_start': train_start,
+            'train_end': train_end,
+            'min_customers': min_customers,
+            'min_items': min_items,
+            'min_similar': min_similar
+        }
+        json.dump(meta, f)
 
 
 if __name__ == '__main__':
