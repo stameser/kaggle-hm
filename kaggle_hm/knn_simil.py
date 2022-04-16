@@ -122,7 +122,7 @@ def main(train_start, train_end, min_customers, min_items, min_similar):
             data = json.load(f)
             if not data:
                 continue
-            _ = pd.DataFrame(data).query('simil > .1')  # todo param?
+            _ = pd.DataFrame(data).query('lem_common >= 3')  # todo param?
             similarity_df = pd.concat([similarity_df, _])
 
     similarity_df.to_parquet(data_root / 'clean' / 'similarity_table.parquet')

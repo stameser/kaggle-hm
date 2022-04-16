@@ -8,3 +8,5 @@ data/
 high_simil/
 *.csv
 *.parquet
+mlruns/
+.ipynb_checkpoints/
