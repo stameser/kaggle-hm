@@ -126,16 +126,16 @@ def collect(predictions):
     _.to_csv('recall.csv')
     mlflow.log_artifact('recall.csv', 'recall.csv')
 
-    _ = plot_precision_at_k(results)
+    _ = plot_precision_at_k(predictions)
     mlflow.log_figure(_, 'precision.png')
 
-    _ = plot_precision_at_k_segments(results)
+    _ = plot_precision_at_k_segments(predictions)
     mlflow.log_figure(_, 'precision_segments.png')
 
-    _ = precision_by_usage(results)
+    _ = precision_by_usage(predictions)
     mlflow.log_figure(_, 'precision_by_usage.png')
 
-    _ = precision_by_age(results)
+    _ = precision_by_age(predictions)
     mlflow.log_figure(_, 'precision_by_segment.png')
 
 
