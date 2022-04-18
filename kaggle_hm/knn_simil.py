@@ -77,6 +77,7 @@ def main(train_start, train_end, min_customers, min_items, min_similar):
     compute knn similarities for a given date
 
     usage:
+    python3 knn_simil.py knn --train-start 2020-07-01 --train-end 2020-09-08 --min-customers 50 --min-items 1 --min-similar 5 | tee -a $KAGGLE_HM_DATA/logs/knn.log
     python3 knn_simil.py knn --train-start 2020-08-01 --train-end 2020-09-08 --min-customers 2 --min-items 1 --min-similar 2 | tee -a $KAGGLE_HM_DATA/logs/knn.log
     python3 knn_simil.py knn --train-start 2020-09-01 --train-end 2020-09-08 --min-customers 2 --min-items 1 --min-similar 2 | tee $KAGGLE_HM_DATA/logs/knn.log
     """
@@ -122,7 +123,7 @@ def main(train_start, train_end, min_customers, min_items, min_similar):
             data = json.load(f)
             if not data:
                 continue
-            _ = pd.DataFrame(data).query('lem_common >= 3')  # todo param?
+            _ = pd.DataFrame(data).query('len_common >= 5')  # todo param?
             similarity_df = pd.concat([similarity_df, _])
 
     similarity_df.to_parquet(data_root / 'clean' / 'similarity_table.parquet')

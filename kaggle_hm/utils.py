@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import logging
 import matplotlib.image as mpimg
+import seaborn as sns
 
 
 def init_nb():
@@ -11,6 +12,7 @@ def init_nb():
     pd.set_option('display.float_format', '{:.4f}'.format)
     np.set_printoptions(suppress=True, precision=4)
     plt.rcParams['figure.figsize'] = (10, 5)
+    sns.set_style('white')
 
 
 def plot_item(c, ax=None):
@@ -26,7 +28,7 @@ def plot_item(c, ax=None):
 
 
 def visualize_items(items, rows=8, columns=8):
-    items = items[:rows*columns]
+    items = items[:rows * columns]
     fig, ax = plt.subplots(rows, columns, figsize=(rows * 3, columns * 3))
 
     for i, c in enumerate(items):
