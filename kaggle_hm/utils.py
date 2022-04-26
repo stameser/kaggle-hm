@@ -1,9 +1,10 @@
+import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import logging
-import matplotlib.image as mpimg
 import seaborn as sns
+
+from kaggle_hm.config import data_root
 
 
 def init_nb():
@@ -18,7 +19,7 @@ def init_nb():
 def plot_item(c, ax=None):
     if not ax:
         ax = plt.gca()
-    path = f'../data/images/{c[:3]}/{c}.jpg'
+    path = f'{data_root}/images/{c[:3]}/{c}.jpg'
     try:
         img = mpimg.imread(path)
         ax.imshow(img)
@@ -29,7 +30,7 @@ def plot_item(c, ax=None):
 
 def visualize_items(items, rows=8, columns=8):
     items = items[:rows * columns]
-    fig, ax = plt.subplots(rows, columns, figsize=(rows * 3, columns * 3))
+    fig, ax = plt.subplots(rows, columns, figsize=(columns * 3, rows * 3))
 
     for i, c in enumerate(items):
         row, col = i // columns, i % columns
