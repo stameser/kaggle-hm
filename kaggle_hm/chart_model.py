@@ -17,16 +17,29 @@ def filter_data(transactions: pd.DataFrame, from_date: str = None, to_date: str 
     return transactions[_]
 
 
-def compute_chart(transactions: pd.DataFrame) -> List[str]:
+def compute_chart(transactions: pd.DataFrame, limit=12) -> List[str]:
     """
     Calculate top-12 items and return as a list
     :return:
     """
     top_12 = (
         transactions
-        .groupby('article_id', observed=True)
-        .agg(total_count=('customer_id', 'count'))
-        .sort_values('total_count', ascending=False)[:12].reset_index()['article_id'].tolist()
+            .groupby('article_id', observed=True)
+            .agg(total_count=('customer_id', 'count'))
+            .sort_values('total_count', ascending=False)[:limit].reset_index()['article_id'].tolist()
     )
 
     return top_12
+
+
+def age_chart(transactions):
+    top12_age = (
+        transactions
+        .groupby(['article_id', 'age_group'], observed=True)
+        .agg(total_count=('customer_id', 'count'))
+        .sort_values('total_count', ascending=False)
+    ).reset_index()
+    top12_age['r'] = top12_age.groupby('age_group')['total_count'].rank(method='first', ascending=False)
+    top12_age_pred = top12_age.query('r <= 12').groupby('age_group').agg(naive_pred=('article_id', list)).reset_index()
+
+    return top12_age_pred
