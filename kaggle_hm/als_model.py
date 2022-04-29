@@ -8,7 +8,7 @@ from scipy.sparse import coo_matrix
 
 from kaggle_hm.chart_model import filter_data, age_chart
 from kaggle_hm.config import data_root, test_dates
-from kaggle_hm.evaluation import compute_precision, collect
+from kaggle_hm.evaluation import compute_precision, collect, enrich_data
 
 
 class Transformer:
