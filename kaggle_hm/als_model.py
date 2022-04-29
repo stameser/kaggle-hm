@@ -1,8 +1,14 @@
+import click
 import implicit
+import mlflow
 import numpy as np
 import pandas as pd
 from implicit.nearest_neighbours import bm25_weight, tfidf_weight
 from scipy.sparse import coo_matrix
+
+from kaggle_hm.chart_model import filter_data, age_chart
+from kaggle_hm.config import data_root, test_dates
+from kaggle_hm.evaluation import compute_precision, collect
 
 
 class Transformer:
@@ -50,7 +56,8 @@ class MatrixTransformer:
 
     def transform(self, transactions: pd.DataFrame):
         data = np.ones(transactions.shape[0])
-        ptrs = (transactions['customer_id'], transactions['article_id'].map(self.item_transformer.item_code).astype('int'))
+        ptrs = (
+        transactions['customer_id'], transactions['article_id'].map(self.item_transformer.item_code).astype('int'))
         matrix = coo_matrix((data, ptrs))
 
         return self._cell_values(matrix).tocsr()
@@ -100,8 +107,8 @@ class MatrixFactorizationPipeline:
         X_train = self.vectorizer.transform(train_transactions)
 
         self.model = implicit.als.AlternatingLeastSquares(factors=self.factors, regularization=self.regularization,
-                                                     iterations=self.iterations, calculate_training_loss=True,
-                                                     use_gpu=True)
+                                                          iterations=self.iterations, calculate_training_loss=True,
+                                                          use_gpu=True)
         self.model.fit(X_train)
 
     def predict(self, transactions):
@@ -116,7 +123,8 @@ class MatrixFactorizationPipeline:
         pred_transactions['customer_id'] = pred_transactions['customer_id'].map(transformer.item_code).astype('int')
         X_pred = self.vectorizer.transform(pred_transactions)
 
-        items, scores = self.model.recommend(np.arange(X_pred.shape[0]), X_pred, N=12, filter_already_liked_items=False,
+        items, scores = self.model.recommend(np.arange(X_pred.shape[0]), X_pred, N=12,
+                                             filter_already_liked_items=False,
                                              recalculate_user=True)
         rec_df = pd.DataFrame(items)
         rec_cols = np.arange(12)
@@ -127,10 +135,72 @@ class MatrixFactorizationPipeline:
         return rec_df
 
 
-def hello_world():
-    print('hi there')
+@click.command()
+@click.option('--min-items', default=2, help='Minimal number of items per customer')
+@click.option('--min-customers', default=2, help='Minimal number of customers per item')
+@click.option('--factors', default=256, help='Number of latent factors')
+@click.option('--regularization', default=0.01, help='Regularization parameter')
+@click.option('--iterations', default=10, help='Number of iterations')
+@click.option('--cell-value', default='tfidf', help='const, tfidf or bm25')
+def main(min_items, min_customers, factors, regularization, iterations, cell_value):
+    print('Loading data...')
+    df = pd.read_parquet(data_root / 'clean' / 'transactions.parquet')
+    c = pd.read_parquet(data_root / 'clean' / 'customers.parquet').set_index('customer_id')
+    c['age'] = c['age'].fillna(c['age'].mean())
+    c['age_group'] = pd.cut(c['age'], bins=[15, 21, 25, 30, 40, 50, 60, 100])
+    df = df.merge(c, left_on='customer_id', right_index=True)
+
+    print('Filtering data...')
+    full_ds = filter_data(df, to_date='2020-09-08')
+    test = filter_data(df, test_dates['start'], test_dates['end'])
+    train = filter_data(df, '2020-09-01', '2020-09-08')
+
+    print('Preparing test set...')
+    results = test.groupby('customer_id', observed=True).agg(bought=('article_id', set)).reset_index()
+    results = results.merge(c, left_on='customer_id', right_index=True)
+    cond = ~results['customer_id'].isin(full_ds['customer_id'].unique())
+    results.loc[cond, 'segment'] = 'cold'
+
+    cond = results['customer_id'].isin(full_ds['customer_id'].unique())
+    results.loc[cond, 'segment'] = 'old'
+
+    cond = results['customer_id'].isin(train['customer_id'].unique())
+    results.loc[cond, 'segment'] = 'train'
+
+    # baseline predictions
+    print('Baseline predictions...')
+    top12_age_pred = age_chart(train)
+
+    with mlflow.start_run() as run:
+        pipeline = MatrixFactorizationPipeline(min_items=min_items, min_customers=min_customers, cell_value=cell_value,
+                                               factors=factors, iterations=iterations, regularization=regularization)
+        pipeline.fit(train)
+        rec_df = pipeline.predict(full_ds)
+
+        print('doing evaluation')
+        comb = results.merge(rec_df, on='customer_id', how='left')
+        comb = comb.merge(top12_age_pred, on='age_group').drop(columns=['age_group'])
+        comb['prediction'] = comb['candidates'].combine_first(comb['naive_pred'])
+
+        comb = compute_precision(comb)
+        comb = enrich_data(full_ds, comb.set_index('customer_id'), c)
+        segment_precision = comb.groupby('segment').agg(avg_p=('precision', 'mean'))['avg_p'].to_dict()
+
+        collect(comb)
+        mlflow.log_params({
+            'min_items': min_items,
+            'min_customers': min_customers,
+            'cell_value': cell_value,
+            'factors': factors,
+            'iterations': iterations,
+        })
+        mlflow.log_metrics({
+            'test_map12': comb['precision'].mean(),
+            'als_precision': comb[~comb['candidates'].isna()]['precision'].mean(),
+        })
+        mlflow.log_metrics(segment_precision)
+        print(segment_precision)
 
 
 if __name__ == '__main__':
-    pipeline = MatrixFactorizationPipeline(min_items=1, min_customers=1, cell_value='tfidf', factors=256, iterations=5, regularization=0.01)
-    pipeline.fit()
+    main()
