@@ -106,10 +106,11 @@ def enrich_data(data, predictions, customers):
     )
 
     predictions = predictions.join(stats, how='left')
+    predictions[['items_total', 'items_uniq']] = predictions[['items_total', 'items_uniq']].fillna(0)
     predictions = predictions.join(customers[['age_group']], how='left')
 
-    bins = [-0.1, 5, 20, 50, 100, 10_000]
-    labels = ['0-5', '5-20', '20-50', '50-100', '100+']
+    bins = [-0.1, 0, 5, 20, 50, 100, 10_000]
+    labels = ['0', '1-5', '5-20', '20-50', '50-100', '100+']
     predictions['hist_size'] = pd.cut(predictions['items_total'], bins=bins, labels=labels)
 
     return predictions
@@ -137,6 +138,7 @@ def collect(predictions):
 
     _ = precision_by_age(predictions)
     mlflow.log_figure(_, 'precision_by_segment.png')
+    plt.close('all')
 
 
 # find "cold" users and show they
