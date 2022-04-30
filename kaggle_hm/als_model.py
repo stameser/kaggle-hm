@@ -39,25 +39,20 @@ class MatrixTransformer:
             return tfidf_weight(X)
         elif self.cell_values == 'bm25':
             return bm25_weight(X)
+        elif self.cell_values == 'time':
+            return tfidf_weight(X)
         return X
-        # elif self.cell_values == 'time':
-        # dt = dataset.test['t_dat'].min()
-        # delta = (dt - dataset.train['t_dat']).dt.days
-        # delta_weeks = np.power(delta // 7, 1)
-        # norm = coo_matrix(X)
-        # norm.data
-        # data = np.ones(dataset.test.shape[0])
-        # ptrs = (self.test_customers.transform(dataset.test['customer_id']), self.item_transformer.transform(dataset.test['article_id']))
-        # return #/(today - df['d_time'])
 
     def fit(self, transactions: pd.DataFrame):
         self.item_transformer = Transformer()
         self.item_transformer.fit(transactions['article_id'].unique())
 
     def transform(self, transactions: pd.DataFrame):
-        data = np.ones(transactions.shape[0])
-        ptrs = (
-        transactions['customer_id'], transactions['article_id'].map(self.item_transformer.item_code).astype('int'))
+        if self.cell_values == 'time':
+            data = transactions['delta_weeks']
+        else:
+            data = np.ones(transactions.shape[0])
+        ptrs = (transactions['customer_id'], transactions['article_id'].map(self.item_transformer.item_code).astype('int'))
         matrix = coo_matrix((data, ptrs))
 
         return self._cell_values(matrix).tocsr()
@@ -75,8 +70,8 @@ class MatrixFactorizationPipeline:
     def fit(self, train):
         i_stats = (
             train
-                .groupby('article_id', observed=True)
-                .agg(
+            .groupby('article_id', observed=True)
+            .agg(
                 cust_total=('customer_id', 'count')
             ).query(f'cust_total >= {self.min_customers}').reset_index()
         )
@@ -85,8 +80,8 @@ class MatrixFactorizationPipeline:
 
         c_stats = (
             train[train['article_id'].isin(train_items)]
-                .groupby('customer_id', observed=True)
-                .agg(
+            .groupby('customer_id', observed=True)
+            .agg(
                 items_total=('article_id', 'count')
             ).query(f'items_total >= {self.min_items}').reset_index()
         )
@@ -94,8 +89,8 @@ class MatrixFactorizationPipeline:
         print('#customers', len(train_customers))
 
         cond = (
-                train['customer_id'].isin(train_customers) &
-                train['article_id'].isin(train_items)
+            train['customer_id'].isin(train_customers) &
+            train['article_id'].isin(train_items)
         )
         train_transactions = train[cond].copy()
 
@@ -150,7 +145,12 @@ def main(min_items, min_customers, factors, regularization, iterations, cell_val
     c['age_group'] = pd.cut(c['age'], bins=[15, 21, 25, 30, 40, 50, 60, 100])
     df = df.merge(c, left_on='customer_id', right_index=True)
 
+    delta = (pd.to_datetime('2020-09-08') - df['t_dat']).dt.days
+    delta_weeks = 1 / (1 + np.power(delta // 7, 1))
+    df['delta_weeks'] = delta_weeks
+
     print('Filtering data...')
+
     full_ds = filter_data(df, to_date='2020-09-08')
     test = filter_data(df, test_dates['start'], test_dates['end'])
     train = filter_data(df, '2020-09-01', '2020-09-08')
