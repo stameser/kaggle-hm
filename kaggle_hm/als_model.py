@@ -106,7 +106,7 @@ class MatrixFactorizationPipeline:
                                                           use_gpu=True)
         self.model.fit(X_train)
 
-    def predict(self, transactions):
+    def predict(self, transactions, N=12):
         train_items = self.vectorizer.item_transformer.item_code.keys()
         cond = (
             transactions['article_id'].isin(train_items)
@@ -118,16 +118,15 @@ class MatrixFactorizationPipeline:
         pred_transactions['customer_id'] = pred_transactions['customer_id'].map(transformer.item_code).astype('int')
         X_pred = self.vectorizer.transform(pred_transactions)
 
-        items, scores = self.model.recommend(np.arange(X_pred.shape[0]), X_pred, N=12,
+        items, scores = self.model.recommend(np.arange(X_pred.shape[0]), X_pred, N=N,
                                              filter_already_liked_items=False,
                                              recalculate_user=True)
-        rec_df = pd.DataFrame(items)
-        rec_cols = np.arange(12)
-        rec_df['candidates'] = rec_df[rec_cols].apply(
-            lambda item_list: self.vectorizer.item_transformer.inverse(item_list), axis=1)  # todo MAP?
-        rec_df['customer_id'] = transformer.inverse(rec_df.index)
 
-        return rec_df
+        candidates = pd.DataFrame({'item_id': items.flatten(), 'score': scores.flatten()})
+        candidates['customer_id'] = (candidates.index // N).map(transformer.code_item)
+        candidates['article_id'] = candidates['item_id'].map(self.vectorizer.item_transformer.code_item)
+
+        return candidates
 
 
 @click.command()
