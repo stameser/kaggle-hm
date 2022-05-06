@@ -22,15 +22,11 @@ def cat_feature_prop(transactions, cat_feature):
 
 
 def calc_features(als_candidates, train: pd.DataFrame, customers: pd.DataFrame, items: pd.DataFrame) -> pd.DataFrame:
-    train_nodup = train.drop_duplicates(subset=['customer_id', 'article_id'])
-    candidates = als_candidates.merge(train_nodup[['customer_id', 'article_id', 't_dat']], on=['customer_id', 'article_id'], how='left')
-    candidates['bought'] = candidates['t_dat'].notna().astype('int')
-    candidates = candidates.drop(columns=['t_dat'])
+    train_nodup = train.groupby(['customer_id', 'article_id'], observed=True, as_index=False).agg(article_totals=('t_dat', 'count'))
+    candidates = als_candidates.merge(train_nodup[['customer_id', 'article_id', 'article_totals']], on=['customer_id', 'article_id'], how='left')
 
-    train_nodup = train.drop_duplicates(subset=['customer_id', 'product_code'])
-    candidates = candidates.merge(train_nodup[['customer_id', 'product_code', 't_dat']], on=['customer_id', 'product_code'], how='left')
-    candidates['bought_same_prod'] = candidates['t_dat'].notna().astype('int8')
-    candidates = candidates.drop(columns=['t_dat'])
+    train_nodup = train.groupby(['customer_id', 'product_code'], observed=True, as_index=False).agg(product_totals=('t_dat', 'count'))
+    candidates = candidates.merge(train_nodup[['customer_id', 'product_code', 'product_totals']], on=['customer_id', 'product_code'], how='left')
     # shopping frequency
 
     candidates = candidates.merge(customers[['customer_id', 'age']], on='customer_id', how='left')
