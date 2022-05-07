@@ -27,3 +27,16 @@ kaggle competitions download -c h-and-m-personalized-fashion-recommendations
 
 convert nb to html
 `jupyter nbconvert --to html .\notebooks\example.ipynb --output=example.html`
+
+# Training flow
+
+```bash
+python als_model.py candidates --min-items 2 --min-customers 2 --factors 256 --cell-value='time' --iterations 50 --model-date 2020-09-08
+```
+
+# Evaluation flow 
+
+# Subsmission flow
+```bash
+python als_model.py candidates --min-items 2 --min-customers 2 --factors 256 --cell-value='time' --iterations 50 --model-date 2020-09-22
+```

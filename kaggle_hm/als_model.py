@@ -255,7 +255,6 @@ def fit_model(min_items, min_customers, factors, regularization, iterations, cel
 
         LOG.info('Predicting...')
         candidates = pipeline.predict(full_ds, N=N)
-        candidates['method'] = 'als'
 
         LOG.info('Saving candidates...')
         candidates.to_parquet(data_root / model_date / 'candidates.parquet')
