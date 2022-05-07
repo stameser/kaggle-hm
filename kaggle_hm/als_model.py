@@ -229,8 +229,8 @@ def main(min_items, min_customers, factors, regularization, iterations, cell_val
 @click.option('--iterations', default=10, help='Number of iterations')
 @click.option('--cell-value', default='time', help='const, tfidf or bm25')
 @click.option('--model-date', help='date')
-@click.option('--N', help='Number of recommendations')
-def fit_model(min_items, min_customers, factors, regularization, iterations, cell_value, model_date, N):
+@click.option('--recs', default=12, help='Number of recommendations')
+def fit_model(min_items, min_customers, factors, regularization, iterations, cell_value, model_date, recs):
     from_date = pd.to_datetime(model_date) - pd.Timedelta(days=7)
     to_date = pd.to_datetime(model_date)
 
@@ -254,7 +254,7 @@ def fit_model(min_items, min_customers, factors, regularization, iterations, cel
         pipeline.fit(train)
 
         LOG.info('Predicting...')
-        candidates = pipeline.predict(full_ds, N=N)
+        candidates = pipeline.predict(full_ds, N=recs)
 
         LOG.info('Saving candidates...')
         candidates.to_parquet(data_root / model_date / 'candidates.parquet')

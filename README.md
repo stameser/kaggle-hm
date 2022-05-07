@@ -31,12 +31,13 @@ convert nb to html
 # Training flow
 
 ```bash
-python als_model.py candidates --min-items 2 --min-customers 2 --factors 256 --cell-value='time' --iterations 50 --model-date 2020-09-08
+python als_model.py candidates --min-items 2 --min-customers 2 --factors 256 --cell-value time --iterations 50 --model-date 2020-09-08 --recs 24
+python ranking_features.py --prediction-date 2020-09-08
 ```
 
 # Evaluation flow 
 
 # Subsmission flow
 ```bash
-python als_model.py candidates --min-items 2 --min-customers 2 --factors 256 --cell-value='time' --iterations 50 --model-date 2020-09-22
+python als_model.py candidates --min-items 2 --min-customers 2 --factors 256 --cell-value='time' --iterations 50 --model-date 2020-09-22 --recs 24
 ```
