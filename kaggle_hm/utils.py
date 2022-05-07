@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import logging
+import sys
 
 from kaggle_hm.config import data_root
 
@@ -38,7 +40,9 @@ def visualize_items(items, rows=8, columns=8):
 
 
 def init_logging():
-    # level
-    # format
-    # stdout
-    pass
+    level = 'INFO'
+    logger = logging.getLogger('kaggle_hm')
+    logger.setLevel(level)
+    h = logging.StreamHandler(stream=sys.stdout)
+    h.setFormatter(logging.Formatter(fmt='%(asctime)s %(levelname)s %(name)s:%(lineno)d %(message)s'))
+    logger.addHandler(h)
