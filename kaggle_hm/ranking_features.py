@@ -92,10 +92,10 @@ def get_item_stats(transactions, prediction_date):
 
 def load_candidates(prediction_date):
     # todo try to keep all scores
-    candidates = pd.read_parquet(data_root / prediction_date / 'candidates.parquet').drop(columns=['item_id'])
-    candidates['method'] = 'als'  # todo: encoding save less mem
+    candidates = pd.read_parquet(data_root / prediction_date / 'candidates.parquet')
+    candidates['method'] = 'als'
     LOG.info(f'Loaded {candidates.shape[0]} ALS candidates')
-
+    return candidates
     semantic_candidates = pd.read_parquet(data_root / prediction_date / 'semantic_candidates.parquet')
     semantic_candidates['method'] = 'tfidf'
     LOG.info(f'Loaded {semantic_candidates.shape[0]} semantic candidates')
@@ -168,6 +168,7 @@ def main(prediction_date):
     candidates['segment'] = candidates['segment'].astype('category')
 
     # we need this for beta smoothing
+    # todo shorter period of time? 30, 60, 90 days?
     customer_totals = full_ds.groupby('customer_id', observed=True, as_index=False).agg(total_items=('article_id', 'count'))
     candidates = candidates.merge(customer_totals, on='customer_id', how='left')
 
