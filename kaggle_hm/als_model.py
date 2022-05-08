@@ -135,7 +135,7 @@ class MatrixFactorizationPipeline:
         candidates['customer_id'] = (candidates.index // N).map(transformer.code_item)
         candidates['article_id'] = candidates['item_id'].map(self.vectorizer.item_transformer.code_item)
 
-        return candidates
+        return candidates.drop(columns=['item_id'])
 
 
 def delta_column(to_date, t_dat: pd.Series):
@@ -151,76 +151,6 @@ def cli():
     pass
 
 
-@cli.command('evaluate')
-@click.option('--min-items', default=2, help='Minimal number of items per customer')
-@click.option('--min-customers', default=2, help='Minimal number of customers per item')
-@click.option('--factors', default=256, help='Number of latent factors')
-@click.option('--regularization', default=0.01, help='Regularization parameter')
-@click.option('--iterations', default=10, help='Number of iterations')
-@click.option('--cell-value', default='tfidf', help='const, tfidf or bm25')
-def main(min_items, min_customers, factors, regularization, iterations, cell_value):
-    print('Loading data...')
-    df = pd.read_parquet(data_root / 'clean' / 'transactions.parquet')
-    c = pd.read_parquet(data_root / 'clean' / 'customers.parquet').set_index('customer_id')
-    c['age'] = c['age'].fillna(c['age'].mean())
-    c['age_group'] = pd.cut(c['age'], bins=[15, 21, 25, 30, 40, 50, 60, 100])
-    df = df.merge(c, left_on='customer_id', right_index=True)
-
-    df['delta_weeks'] = delta_column(pd.to_datetime('2020-09-08'), df['t_dat'])
-
-    LOG.info('Filtering data...')
-
-    full_ds = filter_data(df, to_date='2020-09-08')
-    test = filter_data(df, test_dates['start'], test_dates['end'])
-    train = filter_data(df, '2020-09-01', '2020-09-08')
-
-    LOG.info('Preparing test set...')
-    results = test.groupby('customer_id', observed=True).agg(bought=('article_id', set)).reset_index()
-    results = results.merge(c, left_on='customer_id', right_index=True)
-    cond = ~results['customer_id'].isin(full_ds['customer_id'].unique())
-    results.loc[cond, 'segment'] = 'cold'
-
-    cond = results['customer_id'].isin(full_ds['customer_id'].unique())
-    results.loc[cond, 'segment'] = 'old'
-
-    cond = results['customer_id'].isin(train['customer_id'].unique())
-    results.loc[cond, 'segment'] = 'train'
-
-    # baseline predictions
-    LOG.info('Baseline predictions...')
-    top12_age_pred = age_chart(train)
-
-    with mlflow.start_run() as run:
-        pipeline = MatrixFactorizationPipeline(min_items=min_items, min_customers=min_customers, cell_value=cell_value,
-                                               factors=factors, iterations=iterations, regularization=regularization)
-        pipeline.fit(train)
-        rec_df = pipeline.predict(full_ds)
-
-        LOG.info('doing evaluation')
-        comb = results.merge(rec_df, on='customer_id', how='left')
-        comb = comb.merge(top12_age_pred, on='age_group').drop(columns=['age_group'])
-        comb['prediction'] = comb['candidates'].combine_first(comb['naive_pred'])
-
-        comb = compute_precision(comb)
-        comb = enrich_data(full_ds, comb.set_index('customer_id'), c)
-        segment_precision = comb.groupby('segment').agg(avg_p=('precision', 'mean'))['avg_p'].to_dict()
-
-        collect(comb)
-        mlflow.log_params({
-            'min_items': min_items,
-            'min_customers': min_customers,
-            'cell_value': cell_value,
-            'factors': factors,
-            'iterations': iterations,
-        })
-        mlflow.log_metrics({
-            'test_map12': comb['precision'].mean(),
-            'als_precision': comb[~comb['candidates'].isna()]['precision'].mean(),
-        })
-        mlflow.log_metrics(segment_precision)
-        print(segment_precision)
-
-
 @cli.command('candidates')
 @click.option('--min-items', default=2, help='Minimal number of items per customer')
 @click.option('--min-customers', default=2, help='Minimal number of customers per item')
@@ -231,8 +161,9 @@ def main(min_items, min_customers, factors, regularization, iterations, cell_val
 @click.option('--model-date', help='date')
 @click.option('--recs', default=12, help='Number of recommendations')
 def fit_model(min_items, min_customers, factors, regularization, iterations, cell_value, model_date, recs):
-    from_date = pd.to_datetime(model_date) - pd.Timedelta(days=7)
+    LOG.info(f'min_items: {min_items} min_customers: {min_customers} factors: {factors} regularization: {regularization} iterations: {iterations} cell_value: {cell_value} model_date: {model_date} recs: {recs}')
     to_date = pd.to_datetime(model_date)
+    from_date = to_date - pd.Timedelta(days=7)
 
     LOG.info('Loading data...')
     df = pd.read_parquet(data_root / 'clean' / 'transactions.parquet')
@@ -240,9 +171,9 @@ def fit_model(min_items, min_customers, factors, regularization, iterations, cel
 
     LOG.info('Filtering data...')
     train = filter_data(df, from_date=from_date, to_date=to_date)
-    full_ds = filter_data(df, to_date='2020-09-08')
+    full_ds = filter_data(df, to_date=to_date)
 
-    LOG.info('Preparing test set...')
+    LOG.info('Model...')
     with mlflow.start_run() as run:
         print(run.info.run_id)
         pipeline = MatrixFactorizationPipeline(min_items=min_items,
